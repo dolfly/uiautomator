@@ -20,8 +20,9 @@ type (
 	ORIENTATION string
 
 	Screenshot struct {
-		Type   string
-		Base64 string
+		Type     string `json:"type"`
+		Encoding string `json:"encoding"`
+		Data     string `json:"data"`
 	}
 )
 
@@ -127,10 +128,13 @@ func (ua *UIAutomator) DumpWindowHierarchy() (string, error) {
 }
 
 func (ua *UIAutomator) GetScreenshot() (*Screenshot, error) {
-	result := &Screenshot{}
+	result := &Screenshot{
+		Type:     "jpeg",
+		Encoding: "base64",
+	}
 	transform := func(data interface{}, response *http.Response) error {
 		// Convert to base64
-		result.Base64 = base64.StdEncoding.EncodeToString(data.([]byte))
+		result.Data = base64.StdEncoding.EncodeToString(data.([]byte))
 		return nil
 	}
 
