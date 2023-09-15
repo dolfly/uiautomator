@@ -39,7 +39,7 @@ func (ua *UIAutomator) Shell(command []string, timeout int) (output string, err 
 	if ShellReturned.ExitCode != 0 {
 		err = &UiaError{
 			Code:    ShellReturned.ExitCode,
-			Message: fmt.Sprint("Failed to execute command: %s", command),
+			Message: fmt.Sprintf("Failed to execute command: %s", command),
 		}
 		return
 	}

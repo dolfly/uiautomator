@@ -1,4 +1,5 @@
-/**
+/*
+*
 https://github.com/openatx/uiautomator2#app-management
 */
 package uiautomator
@@ -16,6 +17,11 @@ Install an app
 TODO: api "/install" not work
 */
 func (ua *UIAutomator) AppInstall(u string) func() (bool, error) {
+	wrapError := func(err error) func() (bool, error) {
+		return func() (bool, error) {
+			return false, err
+		}
+	}
 	requestURL := fmt.Sprintf("http://%s:%d/install", ua.config.Host, ua.config.Port)
 	response, err := http.PostForm(
 		requestURL,
@@ -24,21 +30,15 @@ func (ua *UIAutomator) AppInstall(u string) func() (bool, error) {
 		},
 	)
 	if err != nil {
-		return func() (bool, error) {
-			return false, err
-		}
+		return wrapError(err)
 	}
 	if response.StatusCode != http.StatusOK {
 		err = boom(response)
-		return func() (bool, error) {
-			return false, err
-		}
+		return wrapError(err)
 	}
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return func() (bool, error) {
-			return false, err
-		}
+		return wrapError(err)
 	}
 	id := string(body)
 	return func() (bool, error) {

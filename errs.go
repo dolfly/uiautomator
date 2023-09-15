@@ -3,6 +3,7 @@ package uiautomator
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -46,4 +47,11 @@ func boom(response *http.Response) error {
 	}
 
 	return fmt.Errorf("HTTP Return code is not 200: (%d) [%s]", response.StatusCode, responseBody)
+}
+func debug(data []byte, err error) {
+	if err == nil {
+		fmt.Printf("%s\n\n", data)
+	} else {
+		log.Fatalf("%s\n\n", err)
+	}
 }

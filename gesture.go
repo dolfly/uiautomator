@@ -15,7 +15,7 @@ type Position struct {
 }
 
 func (pos *Position) String() string {
-	return fmt.Sprintf("%s, %s", pos.X, pos.Y)
+	return fmt.Sprintf("%f, %f", pos.X, pos.Y)
 }
 
 /*

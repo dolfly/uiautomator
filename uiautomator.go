@@ -9,10 +9,14 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dolfly/uiautomator/internal/gadb"
 )
 
 const (
@@ -36,8 +40,11 @@ type (
 	}
 
 	UIAutomator struct {
-		config     *Config
-		http       *http.Client
+		config *Config
+
+		http *http.Client
+		adbc *gadb.Client
+
 		retryTimes int
 		size       *WindowSize
 	}
@@ -45,6 +52,7 @@ type (
 	Config struct {
 		Host                     string  // Server host
 		Port                     int     // Server port
+		Serial                   string  // Serial
 		Timeout                  int     // Timeout(second)
 		AutoRetry                int     // Auto retry times, 0 is without retry
 		RetryDuration            int     // Retry duration(second)
@@ -55,27 +63,70 @@ type (
 	}
 )
 
-func Connect(addr string) *UIAutomator {
-	if addr == "" {
-		panic("Connect: url can not be null")
+func get_device(serial string) (d *gadb.Device, err error) {
+	client, err := gadb.NewClient()
+	if err != nil {
+		return nil, err
 	}
+	devices, err := client.DeviceList()
+	if err != nil {
+		return nil, err
+	}
+	if serial == "" && len(devices) > 0 {
+		return &devices[0], nil
+	}
+	for _, d := range devices {
+		if d.Serial() == serial {
+			return &d, nil
+		}
+	}
+	return nil, fmt.Errorf("device not found")
+}
 
-	u, err := url.Parse(addr)
+func Connect(serialOrUrl string) *UIAutomator {
+	b, err := regexp.MatchString(`^https?://`, serialOrUrl)
+
 	if err != nil {
 		panic(err)
 	}
-	host, port := func(uhost string) (string, int) {
-		arr := strings.Split(uhost, ":")
-		if len(arr) >= 2 {
-			p, _ := strconv.Atoi(arr[1])
-			return string(arr[0]), p
+
+	var host string
+	var port int
+
+	if b {
+		u, err := url.Parse(serialOrUrl)
+		if err != nil {
+			panic(err)
 		}
-		return string(uhost), 80
-	}(u.Host)
+
+		host, port = func(uhost string) (string, int) {
+			arr := strings.Split(uhost, ":")
+			if len(arr) >= 2 {
+				p, _ := strconv.Atoi(arr[1])
+				return string(arr[0]), p
+			}
+			return string(uhost), 80
+		}(u.Host)
+	} else {
+		host, port = func(serial string) (host string, port int) {
+			host = "localhost"
+			port = 7912
+			device, err := get_device(serial)
+			if err != nil {
+				panic(err)
+			}
+			err = device.Forward(7912, 7912)
+			if err != nil {
+				panic(err)
+			}
+			return
+		}(serialOrUrl)
+	}
 
 	config := &Config{
 		Host:          host,
 		Port:          port,
+		Serial:        serialOrUrl,
 		Timeout:       TIMEOUT,
 		AutoRetry:     AUTO_RETRY,
 		RetryDuration: RETRY_DURATION,
@@ -210,8 +261,9 @@ func (ua *UIAutomator) execute(request *http.Request, result interface{}, transf
 	for {
 		request.Header.Set("Content-Type", "application/json; charset=utf-8")
 		request.Header.Set("User-Agent", "UIAUTOMATOR/"+VERSION)
-
+		debug(httputil.DumpRequestOut(request, true))
 		response, err := ua.http.Do(request)
+
 		if err != nil {
 			if ua.caniRetry(err) {
 				time.Sleep(time.Duration(ua.config.RetryDuration) * time.Second)
@@ -220,6 +272,7 @@ func (ua *UIAutomator) execute(request *http.Request, result interface{}, transf
 			}
 			return err
 		}
+		debug(httputil.DumpResponse(response, true))
 		defer response.Body.Close()
 
 		if response.StatusCode != http.StatusOK {
