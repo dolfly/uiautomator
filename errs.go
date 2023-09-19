@@ -2,7 +2,7 @@ package uiautomator
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 )
@@ -33,7 +33,7 @@ func (err *UiaError) Error() string {
 }
 
 func boom(response *http.Response) error {
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}

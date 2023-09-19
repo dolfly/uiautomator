@@ -1,4 +1,5 @@
-/**
+/*
+*
 Selector is a handy mechanism to identify a specific UI object in the current window.
 https://github.com/openatx/uiautomator2#selector
 */
@@ -279,7 +280,7 @@ func (ele Element) wait(duration float32, maxRetry int, exists bool) error {
 			transform,
 		)
 
-		if err != nil || RPCReturned.Result == false {
+		if err != nil || !RPCReturned.Result {
 			retry++
 
 			if retry < maxRetry {

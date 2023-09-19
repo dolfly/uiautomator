@@ -7,7 +7,7 @@ package uiautomator
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -36,7 +36,7 @@ func (ua *UIAutomator) AppInstall(u string) func() (bool, error) {
 		err = boom(response)
 		return wrapError(err)
 	}
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return wrapError(err)
 	}

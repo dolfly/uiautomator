@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -40,11 +40,8 @@ type (
 	}
 
 	UIAutomator struct {
-		config *Config
-
-		http *http.Client
-		adbc *gadb.Client
-
+		config     *Config
+		http       *http.Client
 		retryTimes int
 		size       *WindowSize
 	}
@@ -110,14 +107,31 @@ func Connect(serialOrUrl string) *UIAutomator {
 	} else {
 		host, port = func(serial string) (host string, port int) {
 			host = "localhost"
-			port = 7912
+			port = 0
 			device, err := get_device(serial)
 			if err != nil {
 				panic(err)
 			}
-			err = device.Forward(7912, 7912)
+		RETRY:
+			var has bool = false
+			fl, err := device.ForwardList()
 			if err != nil {
 				panic(err)
+			}
+
+			for _, f := range fl {
+				if f.Remote == "tcp:7912" {
+					has = true
+					port, _ = strconv.Atoi(strings.Replace(f.Local, "tcp:", "", 1))
+				}
+			}
+
+			err = device.Forward(port, 7912, false)
+			if err != nil {
+				panic(err)
+			}
+			if !has {
+				goto RETRY
 			}
 			return
 		}(serialOrUrl)
@@ -207,7 +221,7 @@ func (ua UIAutomator) GetConfig() *Config {
 
 func (ua *UIAutomator) Ping() (status string, err error) {
 	transform := func(response *http.Response) error {
-		responseBody, err := ioutil.ReadAll(response.Body)
+		responseBody, err := io.ReadAll(response.Body)
 		if err != nil {
 			return err
 		}
@@ -243,11 +257,6 @@ func (ua *UIAutomator) caniRetry(err error) bool {
 	if shouldRetry {
 		switch err := err.(type) {
 		case net.Error:
-			if err.Timeout() {
-				return true
-			}
-
-		case *url.Error:
 			if err.Timeout() {
 				return true
 			}
@@ -329,7 +338,7 @@ func (ua *UIAutomator) post(options *RPCOptions, result interface{}, transform i
 	}{
 		Jsonrpc: "2.0",
 		ID: func() string {
-			text := fmt.Sprintf("%s at %u", options.Method, time.Now().Unix())
+			text := fmt.Sprintf("%s at %d", options.Method, time.Now().Unix())
 			hasher := md5.New()
 			hasher.Write([]byte(text))
 			return hex.EncodeToString(hasher.Sum(nil))
@@ -368,7 +377,7 @@ func parse(response *http.Response) (payload interface{}, err error) {
 		Result interface{} `json:"result"`
 	}
 
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return
 	}

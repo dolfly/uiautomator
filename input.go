@@ -1,4 +1,5 @@
-/**
+/*
+*
 https://github.com/openatx/uiautomator2#input-method
 */
 package uiautomator
@@ -83,13 +84,13 @@ func (ua *UIAutomator) SendAction(code interface{}) error {
 	case string:
 		value, ok := _CODE[typed]
 		if !ok {
-			return fmt.Errorf("Unknow code: %q", code)
+			return fmt.Errorf("unknow code: %q", code)
 		}
 		code = value
 	case int:
 		// Pass
 	default:
-		return fmt.Errorf("Unknow code: %q", code)
+		return fmt.Errorf("unknow code: %q", code)
 	}
 
 	if _, err := ua.Shell([]string{"am", "broadcast", "-a", "ADB_EDITOR_CODE", "--ei", "code", strconv.Itoa(code.(int))}, 5); err != nil {
